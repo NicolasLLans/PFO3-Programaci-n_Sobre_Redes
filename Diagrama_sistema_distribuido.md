@@ -1,4 +1,4 @@
-# Diagrama del Sistema Distribuido - PFO3 (Versión GitHub)
+# Diagrama del Sistema Distribuido - PFO3
 
 ## Arquitectura Cliente-Servidor con Componentes Distribuidos
 

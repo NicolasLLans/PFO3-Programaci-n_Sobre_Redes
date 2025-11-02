@@ -3,67 +3,52 @@
 ## Arquitectura Cliente-Servidor con Componentes Distribuidos
 
 ```mermaid
-graph TB
-    subgraph "Capa de Clientes"
-        CM[📱 Cliente MóviliOS/Android]
-        CW[💻 Cliente WebBrowser]
-    end
+flowchart TB
+    CM[📱 Cliente Móvil]
+    CW[💻 Cliente Web]
     
-    subgraph "Capa de Balanceo"
-        LB[⚖️ Load BalancerNginx/HAProxyPuerto: 80/443]
-    end
+    LB[⚖️ Load BalancerNginx/HAProxy]
     
-    subgraph "Capa de Aplicación"
-        W1[🔧 Worker 1Pool: 5 hilosPuerto: 8001]
-        W2[🔧 Worker 2Pool: 5 hilosPuerto: 8002]
-        W3[🔧 Worker 3Pool: 5 hilosPuerto: 8003]
-    end
+    W1[🔧 Worker 1Pool 5 hilos]
+    W2[🔧 Worker 2Pool 5 hilos]
+    W3[🔧 Worker 3Pool 5 hilos]
     
-    subgraph "Capa de Mensajería"
-        RMQ[🐰 RabbitMQCola de MensajesPuerto: 5672]
-    end
+    RMQ[🐰 RabbitMQCola de Mensajes]
     
-    subgraph "Capa de Persistencia"
-        PG[(🐘 PostgreSQLBase de DatosPuerto: 5432)]
-        S3[☁️ Amazon S3Almacenamientode Archivos]
-    end
+    PG[(🐘 PostgreSQL)]
+    S3[☁️ Amazon S3]
     
-    %% Conexiones de Clientes a Load Balancer
-    CM -->|HTTP/WebSocket| LB
-    CW -->|HTTP/WebSocket| LB
+    CM -->|HTTP| LB
+    CW -->|HTTP| LB
     
-    %% Conexiones de Load Balancer a Workers
     LB -->|Round Robin| W1
     LB -->|Round Robin| W2
     LB -->|Round Robin| W3
     
-    %% Conexiones de Workers a RabbitMQ
-    W1 |Pub/Sub| RMQ
-    W2 |Pub/Sub| RMQ
-    W3 |Pub/Sub| RMQ
+    W1 -.->|Pub/Sub| RMQ
+    W2 -.->|Pub/Sub| RMQ
+    W3 -.->|Pub/Sub| RMQ
     
-    %% Conexiones de Workers a Bases de Datos
-    W1 -->|SQL Queries| PG
-    W2 -->|SQL Queries| PG
-    W3 -->|SQL Queries| PG
+    W1 -->|SQL| PG
+    W2 -->|SQL| PG
+    W3 -->|SQL| PG
     
-    W1 -->|Upload/Download| S3
-    W2 -->|Upload/Download| S3
-    W3 -->|Upload/Download| S3
+    W1 -->|Files| S3
+    W2 -->|Files| S3
+    W3 -->|Files| S3
     
-    %% Estilos
-    classDef clientStyle fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
-    classDef lbStyle fill:#fff3e0,stroke:#f57c00,stroke-width:3px
-    classDef workerStyle fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
-    classDef mqStyle fill:#fce4ec,stroke:#c2185b,stroke-width:2px
-    classDef dbStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    
-    class CM,CW clientStyle
-    class LB lbStyle
-    class W1,W2,W3 workerStyle
-    class RMQ mqStyle
-    class PG,S3 dbStyle
+    style CM fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    style CW fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    style LB fill:#fff3e0,stroke:#f57c00,stroke-width:3px
+    style W1 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style W2 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style W3 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style RMQ fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    style PG fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style S3 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
 ```
+
+---
 
 ## 📋 Descripción de Flujo
 

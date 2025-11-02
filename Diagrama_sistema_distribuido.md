@@ -1,4 +1,4 @@
-# Diagrama del Sistema Distribuido - PFO3
+# Diagrama del Sistema Distribuido - PFO3 (Versión GitHub)
 
 ## Arquitectura Cliente-Servidor con Componentes Distribuidos
 
@@ -7,13 +7,13 @@ flowchart TB
     CM[📱 Cliente Móvil]
     CW[💻 Cliente Web]
     
-    LB[⚖️ Load BalancerNginx/HAProxy]
+    LB[⚖️ Load Balancer<br/>Nginx/HAProxy]
     
-    W1[🔧 Worker 1Pool 5 hilos]
-    W2[🔧 Worker 2Pool 5 hilos]
-    W3[🔧 Worker 3Pool 5 hilos]
+    W1[🔧 Worker 1<br/>Pool 5 hilos]
+    W2[🔧 Worker 2<br/>Pool 5 hilos]
+    W3[🔧 Worker 3<br/>Pool 5 hilos]
     
-    RMQ[🐰 RabbitMQCola de Mensajes]
+    RMQ[🐰 RabbitMQ<br/>Cola de Mensajes]
     
     PG[(🐘 PostgreSQL)]
     S3[☁️ Amazon S3]
@@ -50,63 +50,141 @@ flowchart TB
 
 ---
 
-## 📋 Descripción de Flujo
+## 📋 Componentes del Sistema
 
-### 1. **Flujo de una Petición Típica:**
+### 1️⃣ Capa de Clientes
+- **Cliente Móvil**: Aplicaciones iOS/Android
+- **Cliente Web**: Aplicación en navegador
+- **Protocolo**: HTTP/HTTPS o WebSocket
+
+### 2️⃣ Capa de Balanceo
+- **Load Balancer** (Nginx o HAProxy)
+- **Puerto**: 80 (HTTP) / 443 (HTTPS)
+- **Algoritmo**: Round Robin
+- **Función**: Distribuir peticiones entre workers
+
+### 3️⃣ Capa de Aplicación
+- **Worker 1, 2, 3**: Servidores de procesamiento
+- **Pool de Hilos**: 5 hilos por worker (15 tareas simultáneas)
+- **Puertos**: 8001, 8002, 8003
+- **Función**: Procesar lógica de negocio
+
+### 4️⃣ Capa de Mensajería
+- **RabbitMQ**: Sistema de cola de mensajes
+- **Puerto**: 5672 (AMQP)
+- **Patrón**: Publish/Subscribe
+- **Función**: Comunicación asíncrona entre workers
+
+### 5️⃣ Capa de Persistencia
+- **PostgreSQL**: Base de datos relacional (Puerto 5432)
+  - Datos estructurados (usuarios, pedidos, etc.)
+- **Amazon S3**: Almacenamiento de archivos
+  - Archivos grandes (imágenes, videos, PDFs)
+
+---
+
+## 🔄 Flujos de Operación
+
+### Flujo 1: Petición Síncrona (Consulta simple)
 ```
-Cliente → Load Balancer → Worker disponible → Base de Datos → Respuesta al Cliente
+Cliente → Load Balancer → Worker disponible → PostgreSQL → Respuesta
 ```
 
-### 2. **Flujo de una Tarea Asíncrona:**
+**Ejemplo**: Usuario hace login
+1. Cliente envía credenciales
+2. Load Balancer selecciona Worker 2 (menos carga)
+3. Worker 2 consulta PostgreSQL
+4. Worker 2 responde con token de sesión
+
+### Flujo 2: Petición Asíncrona (Tarea pesada)
 ```
-Cliente → Load Balancer → Worker 1 → RabbitMQ (mensaje) → Worker 2 procesa → Base de Datos
+Cliente → LB → Worker 1 (respuesta inmediata)
+Worker 1 → RabbitMQ (mensaje)
+Worker 2 ← RabbitMQ (procesa mensaje)
+Worker 2 → PostgreSQL/S3 (guarda resultado)
 ```
 
-### 3. **Flujo de Subida de Archivo:**
+**Ejemplo**: Generar reporte mensual
+1. Cliente solicita reporte
+2. Worker 1 responde: "En proceso..."
+3. Worker 1 envía tarea a RabbitMQ
+4. Worker 3 procesa reporte en background
+5. Worker 3 guarda PDF en S3
+6. Sistema notifica al usuario (email/push)
+
+### Flujo 3: Subida de Archivo
 ```
-Cliente → Load Balancer → Worker → S3 (archivo) + PostgreSQL (metadata)
+Cliente → LB → Worker → S3 (archivo) + PostgreSQL (metadata)
+```
+
+**Ejemplo**: Usuario sube foto de perfil
+1. Cliente envía imagen
+2. Worker 1 recibe archivo
+3. Worker 1 sube a S3 → obtiene URL
+4. Worker 1 guarda en PostgreSQL: {user_id, photo_url, size, date}
+5. Worker 1 envía mensaje a RabbitMQ: "Generar thumbnails"
+6. Worker 2 procesa thumbnails en background
+
+---
+
+## ⚡ Ventajas de esta Arquitectura
+
+| Característica | Beneficio |
+|----------------|-----------|
+| **Alta Disponibilidad** | Si un worker falla, otros continúan |
+| **Escalabilidad Horizontal** | Agregar más workers según demanda |
+| **Procesamiento Paralelo** | 15 tareas simultáneas (3 workers × 5 hilos) |
+| **Desacoplamiento** | Workers no dependen entre sí directamente |
+| **Tolerancia a Fallos** | RabbitMQ garantiza entrega de mensajes |
+| **Balanceo de Carga** | Distribución automática de peticiones |
+
+---
+
+## 🔧 Tecnologías y Puertos
+
+| Componente | Tecnología | Puerto | Protocolo |
+|------------|------------|--------|-----------|
+| Load Balancer | Nginx/HAProxy | 80, 443 | HTTP/HTTPS |
+| Workers | Python + Socket | 8001-8003 | TCP |
+| Message Queue | RabbitMQ | 5672 | AMQP |
+| Base de Datos | PostgreSQL | 5432 | PostgreSQL |
+| File Storage | Amazon S3 | 443 | HTTPS |
+
+---
+
+## 📝 Próximos Pasos (Consigna 2)
+
+### Implementación del Servidor (Worker)
+```python
+# Componentes necesarios:
+- socket: Para recibir conexiones TCP
+- threading: Para pool de hilos (5 threads)
+- pika: Cliente de RabbitMQ
+- psycopg2: Cliente de PostgreSQL
+```
+
+### Implementación del Cliente
+```python
+# Componentes necesarios:
+- socket: Para conectar al servidor
+- json: Para serializar mensajes
+- threading: Para recibir respuestas asíncronas
 ```
 
 ---
 
-## 🔧 Características Clave del Sistema
+## 💡 Conceptos Clave para Recordar
 
-### **Alta Disponibilidad**
-- Si un worker falla, el Load Balancer redirige a otro
-- La cola RabbitMQ garantiza que las tareas no se pierdan
-
-### **Escalabilidad Horizontal**
-- Se pueden agregar más workers según la demanda
-- El Load Balancer distribuye automáticamente la carga
-
-### **Desacoplamiento**
-- Los workers se comunican vía RabbitMQ sin conocerse directamente
-- Facilita el mantenimiento y las actualizaciones
-
-### **Pool de Hilos por Worker**
-- Cada worker puede procesar múltiples tareas simultáneamente
-- Ejemplo: Worker con 5 hilos = 5 tareas en paralelo
+1. **Load Balancer**: Evita sobrecarga en un solo servidor
+2. **Worker Pool**: Múltiples servidores procesando en paralelo
+3. **Thread Pool**: Múltiples hilos por worker para concurrencia
+4. **Message Queue**: Comunicación asíncrona y desacoplada
+5. **Distributed Storage**: Separación de datos estructurados (DB) y archivos (S3)
 
 ---
 
-## 🌐 Puertos Estándar Utilizados
+## 🎯 Casos de Uso Reales
 
-| Componente | Puerto | Protocolo |
-|------------|--------|-----------|
-| Nginx/HAProxy | 80, 443 | HTTP/HTTPS |
-| Workers | 8001-8003 | TCP/HTTP |
-| RabbitMQ | 5672 | AMQP |
-| PostgreSQL | 5432 | PostgreSQL Protocol |
-| S3 | 443 | HTTPS |
-
----
-
-## 💡 Ventajas de esta Arquitectura
-
-1. **Tolerancia a Fallos**: Si un componente falla, el sistema sigue funcionando
-2. **Escalabilidad**: Fácil agregar más recursos según demanda
-3. **Mantenimiento**: Se pueden actualizar workers sin detener el servicio
-4. **Performance**: Procesamiento paralelo mediante múltiples workers e hilos
-5. **Flexibilidad**: Diferentes tipos de almacenamiento según necesidad
-
----
+- **E-commerce**: Pedidos → Workers → Inventario (DB) + Factura (PDF en S3)
+- **Red Social**: Posts → Workers → Datos (DB) + Fotos/Videos (S3) + Notificaciones (RabbitMQ)
+- **Streaming**: Usuarios → Workers → Metadata (DB) + Videos (S3) + Transcoding (RabbitMQ)
